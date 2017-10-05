@@ -1,3 +1,6 @@
+#ifndef __SYNCIO__
+#define  __SYNCIO__
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -12,6 +15,14 @@
 
 #include <omp.h>
 
+#ifndef ROUNDUP_PAGE
+#define ROUNDUP_PAGE(nbytes) ((nbytes/BLOCKSIZE)*BLOCKSIZE)+BLOCKSIZE
+#endif
+
+#ifndef BLOCKSIZE
+#define BLOCKSIZE 4096
+#endif
+
 enum FileOrg {
     STRIPE,
     HASH
@@ -25,11 +36,6 @@ FilenameSplit splitext(std::string fn) {
     return FilenameSplit(fn.substr(0, last_index),
             fn.substr(last_index, fn.size()));
 }
-
-struct partindex {
-    int fd;
-    size_t offset;
-};
 
 template <typename T>
 class PartitionedFile {
@@ -47,28 +53,45 @@ class PartitionedFile {
     public:
         typedef std::shared_ptr<PartitionedFile<T> > ptr;
 
+        std::string build_part_fn(FilenameSplit fnsplit,
+                const size_t part_id) {
+            return fnsplit.first + std::to_string(part_id) + fnsplit.second;
+        }
+
+        size_t size(const int part_id=-1) {
+            if (part_id == -1)
+                return ROUNDUP_PAGE(nbytes);
+            else
+                return ROUNDUP_PAGE((parts[part_id].second)*sizeof(T));
+        }
+
+        std::string get_part_fn(const size_t part_id) {
+            return build_part_fn(splitext(fn), part_id);
+        }
+
         void init_parts(const size_t nelems) {
             FilenameSplit fnsplit = splitext(this->fn);
             start_part_len = nelems/nparts;
 
-            for (size_t i = 0; i < nelems; i++) {
-                std::string _fn = fnsplit.first + std::to_string(i)
-                    + fnsplit.second;
+            for (size_t i = 0; i < nparts; i++) {
                 size_t _nelems = i < (nparts-1) ? start_part_len:
                     start_part_len + (nelems % nparts);
 
-                parts.push_back(FilePart(_fn, _nelems));
+                parts.push_back(FilePart(build_part_fn(fnsplit, i), _nelems));
             }
         }
 
+        size_t get_nparts() {
+            return nparts;
+        }
 
         static ptr create(const std::string fn, const size_t nparts) {
             return std::shared_ptr<PartitionedFile>(
                     new PartitionedFile(fn, nparts));
         }
 
-        partindex get_partindex(size_t g_index) {
-            return partindex(0, std::min(g_index/start_part_len, nparts)); // TODO: fd
+        size_t get_partindex(size_t g_index) {
+            return std::min(g_index/start_part_len, nparts);
         }
 
         void write(const std::vector<T>& buffer) {
@@ -78,6 +101,7 @@ class PartitionedFile {
         // len is the number of elements
         void write(const T* buffer, const size_t len) {
             this->init_parts(len);
+            this->nbytes = sizeof(T)*len;
 
             omp_set_num_threads(nparts);
 
@@ -157,3 +181,4 @@ public:
     }
 
 };
+#endif

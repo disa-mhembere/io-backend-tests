@@ -16,8 +16,8 @@ int main(int argc, char* argv[]) {
 
     auto nelems = 33554432;
 
-    if (argc > 2)
-        nelems = atoi(argv[2]);
+    if (argc > 3)
+        nelems = atoi(argv[3]);
 
     srand(123);
     std::default_random_engine generator;

@@ -1,9 +1,9 @@
 CXX=g++
-CXXFLAGS=-std=c++11
+CXXFLAGS=-std=c++11 -lpthread -Wl,--no-as-needed
 CC=gcc
 LDFLAGS=-laio -fopenmp
 
-FILES = test-all test-one-write test-syncio test-mp-rand-read
+FILES = test-all test-one-write test-syncio test-mp-rand-read #test1
 
 all: $(FILES)
 
@@ -18,6 +18,9 @@ test-syncio: test-syncio.o
 
 test-mp-rand-read: test-mp-rand-read.o
 	$(CXX) $(CXXFLAGS) -o test-mp-rand-read test-mp-rand-read.o $(LDFLAGS)
+
+test1: test1.o
+	$(CXX) $(CXXFLAGS) -o test1 test1.o $(LDFLAGS)
 
 clean:
 	rm -f $(FILES)

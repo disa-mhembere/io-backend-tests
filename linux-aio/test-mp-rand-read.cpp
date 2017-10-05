@@ -17,8 +17,9 @@ int main(int argc, char* argv[]) {
         nelems = atoi(argv[4]);
 
     AddOverlord<double>::ptr ov = AddOverlord<double>::create(argv[1], argv[2],
-            atoi(argv[3]), atoi(argv[4]));
+            atoi(argv[3]), nelems);
 
+    ov->run();
     return EXIT_SUCCESS;
 }
 
